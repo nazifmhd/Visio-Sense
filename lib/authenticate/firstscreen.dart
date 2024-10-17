@@ -24,11 +24,11 @@ class FirstScreen extends StatefulWidget {
 
 class _FirstScreenState extends State<FirstScreen>
     with SingleTickerProviderStateMixin {
-  bool _showSignInButton = false;
-  bool _imageShrunk = false;
   late Timer _timer;
   late AnimationController _controller;
   late Animation<double> _animation;
+  late Animation<double> _animation2;
+  double blindImageScale = 1.5;
 
   @override
   void initState() {
@@ -38,18 +38,19 @@ class _FirstScreenState extends State<FirstScreen>
       duration: const Duration(seconds: 1),
       vsync: this,
     );
-    _animation = Tween<double>(begin: 600, end: 300).animate(_controller)
+
+    _animation = Tween<double>(begin: 1.5, end: 1.0).animate(_controller)
       ..addListener(() {
         setState(() {});
       });
 
-    _timer = Timer(Duration(seconds: 5), () {
-      // After 5 seconds, shrink the image and show the sign-in button
-      setState(() {
-        _showSignInButton = true;
-        _imageShrunk = true;
+    _animation2 = Tween<double>(begin: 1.2, end: 1.0).animate(_controller)
+      ..addListener(() {
+        setState(() {});
       });
-      _controller.forward(); // Start the image shrinking animation
+
+    _timer = Timer(Duration(seconds: 2), () {
+      _controller.forward(); // Start the scaling animation after 3 seconds
     });
   }
 
@@ -63,6 +64,8 @@ class _FirstScreenState extends State<FirstScreen>
   //flutter inerface
   @override
   Widget build(BuildContext context) {
+    final deviceWidth = MediaQuery.of(context).size.width;
+
     return Scaffold(
       body: Stack(
         children: [
@@ -104,21 +107,26 @@ class _FirstScreenState extends State<FirstScreen>
 
                     SizedBox(height: 5),
                     Image.asset(
-                      'assets/wave.jpg',
+                      'assets/wave.png',
                       height: 200,
                     ),
 
                     SizedBox(height: 2),
-                    // Blind person image (shrinks after 5 seconds)
-                    Image.asset(
-                      'assets/blind.png',
-                      height: _animation.value, // Animates shrinking of image
+                    // Blind person image (shrinks after 3 seconds)
+                    Padding(
+                      padding: EdgeInsets.only(right: deviceWidth * 0.2),
+                      child: Transform.scale(
+                        scale: _animation
+                            .value, // Adjust the scale factor as needed
+                        child: Image.asset(
+                          'assets/blind.png',
+                        ),
+                      ),
                     ),
-
                     SizedBox(height: 40),
-                    // Show Sign In button after 5 seconds
-                    if (_showSignInButton)
-                      ElevatedButton(
+                    Transform.scale(
+                      scale: _animation2.value,
+                      child: ElevatedButton(
                         onPressed: () {
                           Navigator.push(
                               context,
@@ -128,7 +136,7 @@ class _FirstScreenState extends State<FirstScreen>
                         style: ElevatedButton.styleFrom(
                             fixedSize: Size(300, 50),
                             padding: EdgeInsets.symmetric(
-                                vertical: 15, horizontal: 80),
+                                vertical: 15, horizontal: 30),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
@@ -136,11 +144,37 @@ class _FirstScreenState extends State<FirstScreen>
                             backgroundColor: Colors.black // Button color
                             ),
                         child: Text(
-                          'SIGN IN',
+                          'GET STARTED',
                           style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 24),
+                              fontWeight: FontWeight.bold, fontSize: 20),
                         ),
                       ),
+                    ),
+                    // Show Sign In button after 3 seconds
+                    // if (_showSignInButton)
+                    //   ElevatedButton(
+                    //     onPressed: () {
+                    //       Navigator.push(
+                    //           context,
+                    //           MaterialPageRoute(
+                    //               builder: (context) => SignInScreen()));
+                    //     },
+                    //     style: ElevatedButton.styleFrom(
+                    //         fixedSize: Size(300, 50),
+                    //         padding: EdgeInsets.symmetric(
+                    //             vertical: 15, horizontal: 80),
+                    //         shape: RoundedRectangleBorder(
+                    //           borderRadius: BorderRadius.circular(10),
+                    //         ),
+                    //         foregroundColor: Colors.white,
+                    //         backgroundColor: Colors.black // Button color
+                    //         ),
+                    //     child: Text(
+                    //       'SIGN IN',
+                    //       style: TextStyle(
+                    //           fontWeight: FontWeight.bold, fontSize: 24),
+                    //     ),
+                    //   ),
                   ],
                 ),
               ),

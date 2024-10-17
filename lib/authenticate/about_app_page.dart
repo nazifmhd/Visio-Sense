@@ -49,7 +49,7 @@ class AboutAppPage extends StatelessWidget {
                   'assets/aboutapp.jpg',
                   height: 100,
                 ),
-                SizedBox(height: 100),
+                SizedBox(height: 80),
 
                 Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -62,7 +62,7 @@ class AboutAppPage extends StatelessWidget {
                     child: Text(
                       'The Object Identification Sunglasses app features a simple, accessible interface for blind users. It offers large buttons for object identification, settings, and help. The app provides real-time audio descriptions of objects using the camera, customizable audio settings, and voice commands for hands-free navigation.',
                       style: TextStyle(
-                          fontSize: 24,
+                          fontSize: 22,
                           color: Colors.black,
                           fontWeight: FontWeight.bold),
                     ),

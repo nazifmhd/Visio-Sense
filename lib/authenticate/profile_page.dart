@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visiosense/authenticate/change_password.dart';
 import 'package:visiosense/authenticate/about_app_page.dart';
 import 'package:visiosense/authenticate/terms_and_conditions.dart';
@@ -6,7 +7,6 @@ import 'package:visiosense/authenticate/privacy_policy.dart';
 import 'package:visiosense/authenticate/change_details.dart';
 import 'package:visiosense/authenticate/history.dart';
 import 'package:visiosense/authenticate/language.dart';
-import 'package:visiosense/models/user_profile.dart';
 
 class ProfilePage extends StatefulWidget {
   @override
@@ -24,17 +24,15 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadUserData() async {
-    UserService userService = UserService();
-    Map<String, dynamic>? userData = await userService.fetchUserData();
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String firstName = prefs.getString('firstName') ?? '';
+    String lastName = prefs.getString('lastName') ?? '';
+    String email = prefs.getString('email') ?? '';
 
-    if (userData != null) {
-      setState(() {
-        userName = userData['name'] ?? ''; // Fetch name
-        userEmail = userData['email'] ?? ''; // Fetch email
-      });
-    } else {
-      print("No user data found");
-    }
+    setState(() {
+      userName = '$firstName $lastName'; // Combine first name and last name
+      userEmail = email;
+    });
   }
 
   @override
@@ -46,7 +44,7 @@ class _ProfilePageState extends State<ProfilePage> {
           leading: IconButton(
             icon: Icon(Icons.arrow_back),
             onPressed: () {
-              // Handle back button
+              Navigator.pop(context); // Navigate back to the previous screen
             },
           ),
           title: Text('Profile'),
@@ -59,8 +57,7 @@ class _ProfilePageState extends State<ProfilePage> {
             Container(
               decoration: BoxDecoration(
                 image: DecorationImage(
-                  image: AssetImage(
-                      'assets/background.jpg'), // Background image path
+                  image: AssetImage('assets/background.jpg'), // Background image path
                   fit: BoxFit.cover,
                 ),
               ),
@@ -83,7 +80,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                   ? userName
                                   : 'Loading...', // Display user's name
                               style: TextStyle(
-                                fontSize: 26,
+                                fontSize: 24,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -93,18 +90,11 @@ class _ProfilePageState extends State<ProfilePage> {
                                   ? userEmail
                                   : 'Loading...', // Display user's email
                               style: TextStyle(
-                                fontSize: 22,
+                                fontSize: 16,
                                 color: Colors.grey,
                               ),
                             ),
                           ],
-                        ),
-                        Spacer(),
-                        IconButton(
-                          icon: Icon(Icons.edit),
-                          onPressed: () {
-                            // Handle profile edit
-                          },
                         ),
                       ],
                     ),

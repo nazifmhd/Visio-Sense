@@ -69,7 +69,7 @@ class LanguageScreen extends StatelessWidget {
                       mainAxisSpacing: 16,
                       crossAxisSpacing: 16,
                       childAspectRatio:
-                          1.2, // Reduced the aspect ratio to give more vertical space
+                          1.0, // Reduced the aspect ratio to give more vertical space
                     ),
                     itemCount: languages.length,
                     itemBuilder: (context, index) {

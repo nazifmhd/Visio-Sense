@@ -32,7 +32,6 @@ class SignUpGuardianState extends State<SignUpGuardian> {
   String glastName = "";
   String gaddress = "";
   String gphoneNumber = "";
-  
 
   Map<String, String> guardianData = {};
 
@@ -117,7 +116,7 @@ class SignUpGuardianState extends State<SignUpGuardian> {
                 SizedBox(height: deviceHeight * 0.02),
                 Center(
                   child: Image.asset(
-                    'assets/wave.jpg', // Centered image
+                    'assets/wave.png', // Centered image
                     height: deviceHeight * 0.20,
                   ),
                 ),
@@ -220,7 +219,7 @@ class SignUpGuardianState extends State<SignUpGuardian> {
                           return null;
                         },
                       ),
-                      
+
                       SizedBox(height: deviceHeight * 0.02),
 
                       // OK Button

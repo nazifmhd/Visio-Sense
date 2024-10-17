@@ -4,6 +4,8 @@ import 'package:visiosense/authenticate/forget_password.dart';
 import 'package:visiosense/authenticate/start_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:visiosense/authenticate/signup_guardian.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -38,11 +40,31 @@ class SignInState extends State<SignInScreen> {
       }
       try {
         UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-            email: email, password: password);
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => StartPage()),
+          email: email,
+          password: password,
         );
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('Guardian_User-Data')
+            .doc(userCredential.user!.uid)
+            .get();
+
+        if (userDoc.exists) {
+          String firstName = userDoc['User FName'];
+          String lastName = userDoc['User LName'];
+          String email = userDoc['Email'];
+          // Store user data in SharedPreferences
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setString('firstName', firstName);
+          await prefs.setString('lastName', lastName);
+          await prefs.setString('email', email);
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => StartPage()),
+          );
+        } else {
+          print('User document does not exist');
+        }
       } catch (e) {
         setState(() {
           error = "Invalid email or password.";
@@ -74,6 +96,9 @@ class SignInState extends State<SignInScreen> {
         body: SingleChildScrollView(
       child: Container(
         width: deviceWidth,
+        constraints: BoxConstraints(
+          minHeight: deviceHeight,
+        ),
         padding: EdgeInsets.symmetric(horizontal: 20.0),
         decoration: BoxDecoration(
           image: DecorationImage(
@@ -115,7 +140,7 @@ class SignInState extends State<SignInScreen> {
               ),
               Center(
                 child: Image.asset(
-                  'assets/wave.jpg', // Centered image
+                  'assets/wave.png', // Centered image
                   height: deviceHeight * 0.20,
                 ),
               ),

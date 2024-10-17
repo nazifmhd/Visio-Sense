@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:visiosense/authenticate/signin.dart';
 
 void main() {
   runApp(VisioSenseApp());
@@ -18,7 +20,8 @@ class VisioSenseApp extends StatelessWidget {
 class ResetPassword extends StatelessWidget {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +35,8 @@ class ResetPassword extends StatelessWidget {
           Container(
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/background.jpg'), // Background image path
+                image: AssetImage(
+                    'assets/background.jpg'), // Background image path
                 fit: BoxFit.cover,
               ),
             ),
@@ -118,7 +122,8 @@ class ResetPassword extends StatelessWidget {
                       if (newPassword == confirmPassword) {
                         try {
                           // Query Firestore to find the document with the given email
-                          QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+                          QuerySnapshot querySnapshot = await FirebaseFirestore
+                              .instance
                               .collection('Guardian_User-Data')
                               .where('Email', isEqualTo: email)
                               .get();
@@ -131,41 +136,66 @@ class ResetPassword extends StatelessWidget {
                             // Update password in Firestore using the document ID
                             await FirebaseFirestore.instance
                                 .collection('Guardian_User-Data')
-                                .doc(userDoc.id) // Use the ID of the found document
+                                .doc(userDoc
+                                    .id) // Use the ID of the found document
                                 .update({
-                              'Password': newPassword, // Update the password field
+                              'Password':
+                                  newPassword, // Update the password field
                             });
 
-                            print("Password updated successfully");
-
-                            // Show success message or navigate to login screen
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text('Password reset successful. Please log in with your new password.'),
-                            ));
+                            Fluttertoast.showToast(
+                              msg: "Password updated successfully",
+                              toastLength: Toast.LENGTH_LONG,
+                              gravity: ToastGravity.BOTTOM,
+                              timeInSecForIosWeb: 2,
+                              backgroundColor: Colors.black,
+                              textColor: Colors.white,
+                              fontSize: 16.0,
+                            );
 
                             // Redirect to login screen
-                            Navigator.popUntil(context, ModalRoute.withName('/login')); // Adjust according to your app's route
+                            Future.delayed(Duration(seconds: 2), () {
+                              // Navigator.popUntil(
+                              //     context, ModalRoute.withName('/login'));
+
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) =>
+                                        SignInScreen()), // Replace Login with your login component
+                                (Route<dynamic> route) =>
+                                    false, // This predicate removes all the previous routes
+                              );
+                            });
                           } else {
                             // Show error message if no user found
                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text('No user found with this email address.'),
+                              content: Text(
+                                  'No user found with this email address.'),
                             ));
                           }
                         } catch (error) {
                           print("Failed to update password: $error");
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text('Error updating password. Please try again.'),
+                            content: Text(
+                                'Error updating password. Please try again.'),
                           ));
                         }
                       } else {
-                        // If passwords don't match, show error message
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text('Passwords do not match.'),
-                        ));
+                        Fluttertoast.showToast(
+                          msg: "Passwords do not match.",
+                          toastLength: Toast.LENGTH_LONG,
+                          gravity: ToastGravity.BOTTOM,
+                          timeInSecForIosWeb: 2,
+                          backgroundColor: Colors.black,
+                          textColor: Colors.white,
+                          fontSize: 16.0,
+                        );
                       }
                     },
                     style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 15, horizontal: 80),
+                      padding:
+                          EdgeInsets.symmetric(vertical: 15, horizontal: 80),
                       backgroundColor: Colors.black,
                     ),
                     child: const Text('RESET PASSWORD'),

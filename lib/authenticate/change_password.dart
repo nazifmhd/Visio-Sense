@@ -36,7 +36,7 @@ class ChangePassword extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Image.asset(
-                    'assets/forgetpasswordnew.png', // Placeholder for waveform image
+                    'assets/forgetpassword.png', // Placeholder for waveform image
                     height: 100,
                   ),
                   Text(
