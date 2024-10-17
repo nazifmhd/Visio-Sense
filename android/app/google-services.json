@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "464841681199",
+    "project_id": "database-c4bc2",
+    "storage_bucket": "database-c4bc2.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:464841681199:android:3a10d760e339c7936c59da",
+        "android_client_info": {
+          "package_name": "com.example.visiosense"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA_yRqwOT3IKxsJnF6nnVUiPSfoIzmaywM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
