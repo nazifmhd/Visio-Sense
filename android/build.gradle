@@ -1,9 +1,22 @@
+buildscript {
+    repositories {
+        // Add these lines
+        google()   // Google's Maven repository
+        mavenCentral()  // Maven Central repository
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:7.0.2' // or latest version
+        classpath 'com.google.gms:google-services:4.3.14' // Google Services plugin
+    }
+}
+
 allprojects {
     repositories {
-        google()
+        google()   // Ensure this is included
         mavenCentral()
     }
 }
+
 
 rootProject.buildDir = "../build"
 subprojects {

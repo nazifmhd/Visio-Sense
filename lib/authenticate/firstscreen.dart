@@ -134,7 +134,7 @@ class _FirstScreenState extends State<FirstScreen>
                                   builder: (context) => SignInScreen()));
                         },
                         style: ElevatedButton.styleFrom(
-                            fixedSize: Size(300, 50),
+                            fixedSize: Size(300, 55),
                             padding: EdgeInsets.symmetric(
                                 vertical: 15, horizontal: 30),
                             shape: RoundedRectangleBorder(
