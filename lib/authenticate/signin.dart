@@ -260,7 +260,7 @@ class SignInState extends State<SignInScreen> {
                 onPressed: _signIn,
                 style: ElevatedButton.styleFrom(
                   fixedSize: Size(deviceWidth * 0.9, deviceHeight * 0.08),
-                  padding: EdgeInsets.symmetric(vertical: deviceHeight * 0.01),
+                  padding: EdgeInsets.symmetric(vertical: deviceHeight * 0.02),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
