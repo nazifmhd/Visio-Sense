@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/widgets.dart';
 
 void main() {
@@ -14,7 +16,17 @@ class VisiosenseApp extends StatelessWidget {
   }
 }
 
-class ChangePassword extends StatelessWidget {
+class ChangePassword extends StatefulWidget {
+  @override
+  _ChangePasswordState createState() => _ChangePasswordState();
+}
+
+class _ChangePasswordState extends State<ChangePassword> {
+  final TextEditingController currentPasswordController = TextEditingController();
+  final TextEditingController newPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -94,8 +106,74 @@ class ChangePassword extends StatelessWidget {
                   ),
                   SizedBox(height: 30),
                   ElevatedButton(
-                    onPressed: () {
-                      // Add your onPressed code here
+                    onPressed: () async {
+                      String currentPassword = currentPasswordController.text;
+                      String newPassword = newPasswordController.text;
+                      String confirmPassword = confirmPasswordController.text;
+
+                      if (currentPassword.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text('Current password must be provided.'),
+                        ));
+                        return;
+                      }
+
+                      if (newPassword == confirmPassword) {
+                        try {
+                          final user = FirebaseAuth.instance.currentUser;
+
+                          if (user != null) {
+                            final email = user.email;
+
+                            // Re-authenticate the user
+                            AuthCredential credential = EmailAuthProvider.credential(email: email!, password: currentPassword);
+                            await user.reauthenticateWithCredential(credential);
+
+                            // Update password in Firebase Authentication
+                            await user.updatePassword(newPassword);
+
+                            // Query Firestore to find the document with the given email
+                            QuerySnapshot querySnapshot = await FirebaseFirestore
+                                .instance
+                                .collection('Guardian_User-Data')
+                                .where('Email', isEqualTo: email)
+                                .get();
+
+                            // Check if any document was found
+                            if (querySnapshot.docs.isNotEmpty) {
+                              // Get the document (assuming email is unique)
+                              DocumentSnapshot userDoc = querySnapshot.docs.first;
+
+                              // Update password in Firestore using the document ID
+                              await FirebaseFirestore.instance
+                                  .collection('Guardian_User-Data')
+                                  .doc(userDoc.id)
+                                  .update({'Password': newPassword});
+
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text('Password updated successfully!'),
+                              ));
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text('No user found with the provided email address.'),
+                              ));
+                            }
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text('No user is currently signed in.'),
+                            ));
+                          }
+                        } catch (e) {
+                          print("Error updating password: ${e.toString()}");
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text('Failed to update password.'),
+                          ));
+                        }
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text('Passwords do not match.'),
+                        ));
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       padding:
