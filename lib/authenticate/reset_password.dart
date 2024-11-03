@@ -26,7 +26,8 @@ class ResetPassword extends StatefulWidget {
 class _ResetPasswordState extends State<ResetPassword> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController =TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -139,14 +140,19 @@ class _ResetPasswordState extends State<ResetPassword> {
                             DocumentSnapshot userDoc = querySnapshot.docs.first;
 
                             User? user = FirebaseAuth.instance.currentUser;
-                          if (user != null && user.email == email) {
-                            await user.updatePassword(newPassword);
-                          } else {
-                            // Re-authenticate the user if necessary
-                            AuthCredential credential = EmailAuthProvider.credential(email: email, password: newPassword);
-                            await user?.reauthenticateWithCredential(credential);
-                            await user?.updatePassword(newPassword);
-                          }
+                            if (user != null && user.email == email) {
+                              await user.updatePassword(newPassword);
+                            } else {
+                              // Re-authenticate the user if necessary
+                              AuthCredential credential =
+                                  EmailAuthProvider.credential(
+                                      email: email, password: newPassword);
+                              UserCredential userCredential = await FirebaseAuth
+                                  .instance
+                                  .signInWithCredential(credential);
+                              user = userCredential.user;
+                              await user?.updatePassword(newPassword);
+                            }
 
                             // Update password in Firestore using the document ID
                             await FirebaseFirestore.instance
