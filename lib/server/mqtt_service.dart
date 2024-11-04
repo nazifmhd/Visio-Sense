@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+//import 'package:cloud_functions/cloud_functions.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
@@ -174,13 +174,14 @@ class MqttService {
         // Get current location
         Position position;
         try {
-        position = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.high);
-        print('Current location: ${position.latitude}, ${position.longitude}');
-      } catch (e) {
-        print('Error getting location: $e');
-        return;
-      }
+          position = await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.high);
+          print(
+              'Current location: ${position.latitude}, ${position.longitude}');
+        } catch (e) {
+          print('Error getting location: $e');
+          return;
+        }
 
         // Construct the alert message with location link
         String locationUrl =
@@ -191,25 +192,24 @@ class MqttService {
         print('Sending SMS to: $guardianPhoneNumber');
         print('SMS content: $alertMessage');
 
-        // Send the SMS alert using Firebase Cloud Functions
-        final HttpsCallable callable =
-            FirebaseFunctions.instance.httpsCallable('sendSmsAlert');
-        final response;
-        try {
-          response = await callable.call(<String, dynamic>{
-            'toPhoneNumber': guardianPhoneNumber,
-            'message': alertMessage,
-          });
-          print('Firebase Cloud Function response: ${response.data}');
-        } catch (e) {
-          print('Error calling Firebase Cloud Function: $e');
-          return;
-        }
+        // Prepare your Notify.lk API credentials
+        String userId = '28341'; // Replace with your actual user ID
+        String apiKey = 'D3ArDxsdDmaEWAe9zHQb'; // Replace with your actual API key
+        String senderId =
+            'NotifyDEMO'; // Replace with your sender ID if different
 
-        if (response.data['success']) {
-          print('SMS alert sent successfully with location!');
+        // Construct the request URL with parameters
+        final requestUrl =
+            'https://app.notify.lk/api/v1/send?user_id=$userId&api_key=$apiKey&sender_id=$senderId&to=$guardianPhoneNumber&message=${Uri.encodeComponent(alertMessage)}';
+
+        // Send the SMS alert
+        final response = await http.get(Uri.parse(requestUrl));
+
+        if (response.statusCode == 200) {
+          final responseData = jsonDecode(response.body);
+          print('SMS alert sent successfully: ${responseData['message']}');
         } else {
-          print('Error sending SMS alert: ${response.data['error']}');
+          print('Error sending SMS alert: ${response.body}');
         }
       } else {
         print('Guardian data not found for user email: $email');
