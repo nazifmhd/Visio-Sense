@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:visiosense/authenticate/profile_page.dart';
 import 'package:sleek_circular_slider/sleek_circular_slider.dart';
 import 'package:visiosense/server/mqtt_service.dart';
+
 void main() {
   runApp(VisiosenseApp());
 }
@@ -33,22 +34,15 @@ class _StartPageState extends State<StartPage> {
   void initState() {
     super.initState();
     _mqttService = MqttService('broker.hivemq.com', 'flutter_client');
-    _mqttService.connect();
-  }
-
-  @override
-  void dispose() {
-    _mqttService.disconnect();
-    super.dispose();
   }
 
   void _connectMQTT() {
-    // Your MQTT connection logic here
+    _mqttService.isDetectionActive = true;
     _mqttService.connect();
   }
 
   void _disconnectMQTT() {
-    // Your MQTT disconnection logic here
+    _mqttService.isDetectionActive = false;
     _mqttService.disconnect();
   }
 
@@ -197,7 +191,8 @@ class _StartPageState extends State<StartPage> {
                     },
                     style: ElevatedButton.styleFrom(
                       fixedSize: Size(400, 60),
-                      padding: EdgeInsets.symmetric(vertical: 15, horizontal: 100),
+                      padding:
+                          EdgeInsets.symmetric(vertical: 15, horizontal: 100),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
