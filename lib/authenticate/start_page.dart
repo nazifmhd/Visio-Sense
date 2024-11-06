@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:visiosense/authenticate/profile_page.dart';
 import 'package:sleek_circular_slider/sleek_circular_slider.dart';
+import 'package:visiosense/server/mqtt_service.dart';
 
 void main() {
   runApp(VisiosenseApp());
@@ -16,18 +17,34 @@ class VisiosenseApp extends StatelessWidget {
   }
 }
 
-// Convert StartPage to StatefulWidget
 class StartPage extends StatefulWidget {
   @override
   _StartPageState createState() => _StartPageState();
 }
 
 class _StartPageState extends State<StartPage> {
-  double _currentSliderValue = 50; // Initialize the slider value
-
+  late MqttService _mqttService;
+  double _currentSliderValue = 50;
   bool isTextReadingEnabled = false;
   bool isFaceRecognitionEnabled = false;
   String buttonTitle = "START";
+  bool isDetectionActive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _mqttService = MqttService('broker.hivemq.com', 'flutter_client');
+  }
+
+  void _connectMQTT() {
+    _mqttService.isDetectionActive = true;
+    _mqttService.connect();
+  }
+
+  void _disconnectMQTT() {
+    _mqttService.isDetectionActive = false;
+    _mqttService.disconnect();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,30 +53,23 @@ class _StartPageState extends State<StartPage> {
     return Scaffold(
       body: Stack(
         children: [
-          // Background Image
           Container(
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage(
-                    'assets/background.jpg'), // Path to background image
+                image: AssetImage('assets/background.jpg'),
                 fit: BoxFit.cover,
               ),
             ),
           ),
-
-          // Content
           Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: 50),
-
-                // Guardian Container
                 Container(
                   width: 500,
                   height: 60,
-                  // padding: const EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(10),
@@ -70,7 +80,7 @@ class _StartPageState extends State<StartPage> {
                       Row(
                         children: [
                           Image.asset(
-                            'assets/logo.jpg', // Path to logo image
+                            'assets/logo.jpg',
                             height: 80,
                           ),
                           SizedBox(width: 10),
@@ -90,26 +100,20 @@ class _StartPageState extends State<StartPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) => ProfilePage()),
+                              builder: (context) => ProfilePage(),
+                            ),
                           );
                         },
                       ),
                     ],
                   ),
                 ),
-
-                SizedBox(
-                  height: 40,
-                ),
-                // Voice Control Slider (Sleek Circular Slider)
+                SizedBox(height: 40),
                 Center(
                   child: Column(
                     children: [
-                      // Voice icon
                       Icon(Icons.volume_up, size: 40, color: Colors.black),
                       SizedBox(height: 20),
-
-                      // Circular Slider
                       SleekCircularSlider(
                         min: 0,
                         max: 100,
@@ -132,118 +136,58 @@ class _StartPageState extends State<StartPage> {
                           );
                         },
                       ),
-
-                      // MIN and MAX Labels
-                      Container(
-                        child: Row(
-                          children: [
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                  deviceWidth * 0.25, 0, 0, 0),
-                              child: Text(
-                                'MIN',
-                                style: TextStyle(
-                                    fontSize: 20, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                  deviceWidth * 0.15, 0, 0, 0),
-                              child: Text(
-                                'MAX',
-                                style: TextStyle(
-                                    fontSize: 20, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          Text(
+                            'MIN',
+                            style: TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            'MAX',
+                            style: TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ),
-
                       SizedBox(height: 20),
-
-                      // Text reading
-                      Container(
-                        padding: EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Column(
-                          children: [
-                            SizedBox(height: 10),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  "Text Reading",
-                                  style: TextStyle(
-                                    fontSize: deviceWidth * 0.05,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Switch(
-                                  value: isTextReadingEnabled,
-                                  onChanged: (bool value) {
-                                    setState(() {
-                                      isTextReadingEnabled = value;
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 10),
-                          ],
-                        ),
-                      ),
+                      _buildToggleOption(
+                          title: "Text Reading",
+                          value: isTextReadingEnabled,
+                          onChanged: (value) {
+                            setState(() {
+                              isTextReadingEnabled = value;
+                            });
+                          }),
                       SizedBox(height: 10),
-                      // Face Recognition
-                      Container(
-                        padding: EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Column(
-                          children: [
-                            SizedBox(height: 10),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  "Face Recognition",
-                                  style: TextStyle(
-                                    fontSize: deviceWidth * 0.05,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Switch(
-                                  value: isFaceRecognitionEnabled,
-                                  onChanged: (bool value) {
-                                    setState(() {
-                                      isFaceRecognitionEnabled = value;
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 10),
-                          ],
-                        ),
-                      ),
+                      _buildToggleOption(
+                          title: "Face Recognition",
+                          value: isFaceRecognitionEnabled,
+                          onChanged: (value) {
+                            setState(() {
+                              isFaceRecognitionEnabled = value;
+                            });
+                          }),
                     ],
                   ),
                 ),
-
                 SizedBox(height: 100),
-
-                // Start Button
                 Center(
                   child: ElevatedButton(
                     onPressed: () {
                       setState(() {
-                        buttonTitle = buttonTitle == "START" ? "STOP" : "START";
+                        // Toggle the detection state
+                        isDetectionActive = !isDetectionActive;
+                        buttonTitle = isDetectionActive ? "STOP" : "START";
+
+                        // Connect or disconnect from MQTT based on the detection state
+                        if (isDetectionActive) {
+                          _connectMQTT();
+                        } else {
+                          _disconnectMQTT();
+                        }
                       });
-                      // Handle Start button press
                     },
                     style: ElevatedButton.styleFrom(
                       fixedSize: Size(400, 60),
@@ -260,6 +204,35 @@ class _StartPageState extends State<StartPage> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleOption(
+      {required String title,
+      required bool value,
+      required ValueChanged<bool> onChanged}) {
+    return Container(
+      padding: EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: MediaQuery.of(context).size.width * 0.05,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
           ),
         ],
       ),

@@ -34,4 +34,31 @@ class GuardianUserDataService {
       throw e;
     }
   }
+
+  Future<void> updateGuardianDataByEmail(
+      String email, String gfirstName, String glastName, String gaddress, String gphoneNumber) async {
+    try {
+      final querySnapshot = await guardianUserCollection
+          .where('Email', isEqualTo: email)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final docId = querySnapshot.docs.first.id;
+
+        await guardianUserCollection.doc(docId).update({
+          'Guardian FName': gfirstName,
+          'Guardian LName': glastName,
+          'Guardian Address': gaddress,
+          'Guardian PNumber': gphoneNumber,
+        });
+        print('Guardian data updated successfully');
+      } else {
+        throw Exception('No user found with the provided email address.');
+      }
+    } catch (e) {
+      print("Error updating guardian data: ${e.toString()}");
+      throw e;
+    }
+  }
 }
+
