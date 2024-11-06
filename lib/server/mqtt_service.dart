@@ -20,7 +20,7 @@ import 'package:typed_data/typed_data.dart'; // Add this import for Uint8Buffer
 
 class MqttService {
   DateTime? _lastSmsTime;
-  final _smsCooldown = Duration(minutes: 1);
+  final _smsCooldown = Duration(seconds: 20);
   bool _switchPressProcessed = false;
   final MqttServerClient _mqttClient;
   bool isDetectionActive = false;
