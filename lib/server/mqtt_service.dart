@@ -1,20 +1,37 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'package:path_provider/path_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-//import 'package:cloud_functions/cloud_functions.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
-import 'package:tflite/tflite.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_ml_model_downloader/firebase_ml_model_downloader.dart';
+import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
+import 'package:image/image.dart' as img;
+import 'package:google_mlkit_commons/google_mlkit_commons.dart';
+import 'package:typed_data/typed_data.dart'; // Add this import for Uint8Buffer
 
 class MqttService {
+  DateTime? _lastSmsTime;
+  final _smsCooldown = Duration(minutes: 1);
+  bool _switchPressProcessed = false;
   final MqttServerClient _mqttClient;
   bool isDetectionActive = false;
   Timer? _connectionCheckTimer;
+  StreamSubscription? _messageSubscription;
+  ObjectDetector? _detector;
+  FirebaseCustomModel? _customModel;
+
+  static const INPUT_SIZE = 300; // Your model's required input size
+  static const MEAN = 127.5; // Your model's mean
+  static const STD = 127.5; // Your model's std
 
   // Track the last detected object and time
   String? _lastDetectedObject;
@@ -29,6 +46,7 @@ class MqttService {
 
     // Start the periodic connection check
     _startConnectionCheck();
+    _initializeDetector();
   }
 
   void _startConnectionCheck() {
@@ -62,6 +80,7 @@ class MqttService {
   }
 
   void disconnect() {
+    _messageSubscription?.cancel();
     _mqttClient.disconnect();
     _stopConnectionCheck();
   }
@@ -82,32 +101,39 @@ class MqttService {
 
   void onConnected() {
     print('MQTT Connected');
+    _messageSubscription?.cancel();
     _mqttClient.subscribe('camera/frame', MqttQos.atLeastOnce);
     _mqttClient.subscribe('switch/alert', MqttQos.atMostOnce);
 
-    _mqttClient.updates!
+    _messageSubscription = _mqttClient.updates!
         .listen((List<MqttReceivedMessage<MqttMessage>> messages) {
       try {
-        final MqttPublishMessage recMess =
-            messages[0].payload as MqttPublishMessage;
-        final String message =
-            MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+        if (messages[0].payload is MqttPublishMessage) {
+          final MqttPublishMessage recMess =
+              messages[0].payload as MqttPublishMessage;
+          final String messageContent =
+              MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
 
-        print('Received message: $message on topic: ${messages[0].topic}');
+          print(
+              'Received message: $messageContent on topic: ${messages[0].topic}');
 
-        if (messages[0].topic == 'switch/alert') {
-          // Get the current user's email from Firebase Authentication
-          User? user = FirebaseAuth.instance.currentUser;
-          if (user != null) {
-            print('User email: ${user.email}');
-            sendSmsAlert(user.email!);
-          } else {
-            print('No user is currently logged in.');
+          if (messages[0].topic == 'switch/alert') {
+            if (!_switchPressProcessed) {
+              // Only process if not already handled
+              User? user = FirebaseAuth.instance.currentUser;
+              if (user != null) {
+                print('User email: ${user.email}');
+                sendSmsAlert(user.email!);
+                _switchPressProcessed = true; // Mark as processed
+              }
+            }
+          } else if (messages[0].topic == 'camera/frame') {
+            if (isDetectionActive) {
+              _processObjectDetectionMessage(messages[0]);
+            }
           }
-        } else if (messages[0].topic == 'camera/frame') {
-          if (isDetectionActive) {
-            _processObjectDetectionMessage(message);
-          }
+        } else {
+          print('Error: message.payload is not of type MqttPublishMessage');
         }
       } catch (e) {
         print('Error processing message: $e');
@@ -137,23 +163,35 @@ class MqttService {
       } catch (e) {
         print('Reconnection attempt failed: $e');
       }
-      await Future.delayed(Duration(seconds: 2)); // Wait before retrying
+      await Future.delayed(Duration(seconds: 2));
     }
     if (_mqttClient.connectionStatus!.state != MqttConnectionState.connected) {
       print('Failed to reconnect after $maxReconnectAttempts attempts');
       // Optionally, you can call sendSmsAlert here to notify about the disconnection
-      User? user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        print('User email: ${user.email}');
-        sendSmsAlert(user.email!);
-      } else {
-        print('No user is currently logged in.');
-      }
+      // User? user = FirebaseAuth.instance.currentUser;
+      // if (user != null) {
+      //   print('User email: ${user.email}');
+      //   sendSmsAlert(user.email!);
+      // } else {
+      //   print('No user is currently logged in.');
+      // }
     }
   }
 
+  void resetSwitchState() {
+    _switchPressProcessed = false;
+  }
+
   Future<void> sendSmsAlert(String email) async {
+    if (_lastSmsTime != null) {
+      final timeSinceLastSms = DateTime.now().difference(_lastSmsTime!);
+      if (timeSinceLastSms < _smsCooldown) {
+        print('SMS cooldown active. Skipping send.');
+        return;
+      }
+    }
     try {
+      _lastSmsTime = DateTime.now();
       print('sendSmsAlert called with email: $email');
       // Request location permission
       await requestLocationPermission();
@@ -172,15 +210,26 @@ class MqttService {
         print('Guardian phone number: $guardianPhoneNumber');
 
         // Get current location
-        Position position;
+        Position position = Position(
+            longitude: 0,
+            latitude: 0,
+            timestamp: DateTime.now(),
+            accuracy: 0,
+            altitude: 0,
+            heading: 0,
+            speed: 0,
+            speedAccuracy: 0,
+            altitudeAccuracy: 0,
+            headingAccuracy: 0);
         try {
           position = await Geolocator.getCurrentPosition(
               desiredAccuracy: LocationAccuracy.high);
           print(
               'Current location: ${position.latitude}, ${position.longitude}');
+          resetSwitchState();
         } catch (e) {
           print('Error getting location: $e');
-          return;
+          resetSwitchState();
         }
 
         // Construct the alert message with location link
@@ -194,7 +243,8 @@ class MqttService {
 
         // Prepare your Notify.lk API credentials
         String userId = '28341'; // Replace with your actual user ID
-        String apiKey = 'D3ArDxsdDmaEWAe9zHQb'; // Replace with your actual API key
+        String apiKey =
+            'D3ArDxsdDmaEWAe9zHQb'; // Replace with your actual API key
         String senderId =
             'NotifyDEMO'; // Replace with your sender ID if different
 
@@ -227,55 +277,124 @@ class MqttService {
     }
   }
 
-  Future<void> _processObjectDetectionMessage(String message) async {
-    if (!isDetectionActive) return;
+  final Map<int, String> _labelMap = {0: 'car', 1: 'chair', 2: 'table'};
 
-    print('Received camera frame message: $message');
-
-    // Load the TensorFlow Lite model
+  Future<ObjectDetector> _createDetector() async {
+    if (_detector != null) return _detector!;
     try {
-      print('Loading TensorFlow Lite model...');
-      await Tflite.loadModel(
-        model: "assets/model.tflite", // Ensure model in assets folder
-        labels: "assets/labels.txt",
-      );
-      print('Model loaded successfully.');
-
-      List<dynamic>? recognitions = await Tflite.runModelOnImage(
-        path: message, // Path of the image
-        numResults: 5,
-        threshold: 0.5,
-      );
-
-      if (recognitions != null && recognitions.isNotEmpty) {
-        String detectedObject = recognitions[0]['label'];
-        double confidence = recognitions[0]['confidence'];
-        print("Detected $detectedObject with confidence $confidence");
-
-        // Check if it's the same object detected within the last 2 seconds
-        if (detectedObject != _lastDetectedObject ||
-            DateTime.now().difference(_lastDetectionTime).inSeconds > 3) {
-          // Update last detected object and time
-          _lastDetectedObject = detectedObject;
-          _lastDetectionTime = DateTime.now();
-
-          // Provide voice feedback
-          print('Calling _speak function...');
-          await _speak(
-              "Detected $detectedObject with confidence ${(confidence * 100).toStringAsFixed(0)}%");
-          print("Voice feedback provided successfully for $detectedObject");
-        } else {
-          print(
-              "Skipping announcement for repetitive detection of $detectedObject");
-        }
-      } else {
-        print('No recognitions found.');
+      if (_customModel == null) {
+        _customModel = await FirebaseModelDownloader.instance.getModel(
+          "object_detection_model_1", // Your model name in Firebase
+          FirebaseModelDownloadType.latestModel,
+          FirebaseModelDownloadConditions(
+            iosAllowsCellularAccess: true,
+            iosAllowsBackgroundDownloading: true,
+            androidChargingRequired: false,
+            androidWifiRequired: false,
+          ),
+        );
+        print('Custom model downloaded: ${_customModel!.file.path}');
       }
-
-      await Tflite.close(); // Free up memory by closing the model
+      final options = LocalObjectDetectorOptions(
+        mode: DetectionMode.stream,
+        classifyObjects: true,
+        multipleObjects: true,
+        modelPath: _customModel!.file.path,
+      );
+      _detector = ObjectDetector(options: options);
+      return _detector!;
     } catch (e) {
-      print('Error in object detection: $e');
+      print('Detector creation error: $e');
+      rethrow;
     }
+  }
+
+  Future<void> _initializeDetector() async {
+    _detector = await _createDetector();
+  }
+
+  Future<void> _processObjectDetectionMessage(
+    MqttReceivedMessage<MqttMessage> message) async {
+  if (!isDetectionActive) return;
+  try {
+    final MqttPublishMessage pubMess = message.payload as MqttPublishMessage;
+
+    // Convert Uint8Buffer to Uint8List
+    final Uint8Buffer buffer = pubMess.payload.message as Uint8Buffer;
+    final Uint8List imageBytes = Uint8List.fromList(buffer.toList());
+
+    // Decode the image to ensure it's valid
+    final img.Image? decodedImage = img.decodeImage(imageBytes);
+    if (decodedImage == null) {
+      throw Exception('Failed to decode image. Invalid image data.');
+    }
+
+    // Preprocess the image and ensure it matches the expected format
+    final Float32List preprocessedImage = await _preprocessImage(decodedImage);
+
+    // Convert Float32List to Uint8List, if necessary, and handle compatibility
+    final Uint8List convertedBytes = Uint8List.view(preprocessedImage.buffer);
+
+    final detector = await _createDetector();
+    if (detector == null) {
+      throw Exception('Failed to create detector');
+    }
+
+    // Create InputImage with verified metadata
+    final inputImageMetadata = InputImageMetadata(
+      size: ui.Size(decodedImage.width.toDouble(), decodedImage.height.toDouble()),
+      rotation: InputImageRotation.rotation0deg,
+      format: InputImageFormat.nv21, // Adjust to the format required
+      bytesPerRow: decodedImage.width * 3, // Assuming RGB format
+    );
+
+    final inputImageFromBytes = InputImage.fromBytes(
+      bytes: convertedBytes,
+      metadata: inputImageMetadata,
+    );
+
+    // Detect objects in the image
+    final List<DetectedObject> objects = await detector.processImage(inputImageFromBytes);
+    if (objects.isEmpty) {
+      print('No objects detected.');
+    } else {
+      // Process detected objects
+      for (final detectedObject in objects) {
+        if (detectedObject.labels.isNotEmpty) {
+          final label = detectedObject.labels.first.text;
+          final confidence = detectedObject.labels.first.confidence;
+          print('Detected $label with ${(confidence * 100).toStringAsFixed(1)}% confidence');
+        }
+      }
+    }
+  } catch (e, stackTrace) {
+    print('Error in object detection: $e');
+    print('Stack trace: $stackTrace');
+  }
+}
+
+
+  Future<Float32List> _preprocessImage(img.Image image) async {
+    // Resize the image to the required input size
+    final img.Image resizedImage =
+        img.copyResize(image, width: 300, height: 300);
+
+    // Get the raw bytes of the image
+    final Uint8List bytes = resizedImage.getBytes();
+
+    // Normalize the pixel values to the range [0, 1]
+    final Float32List normalizedPixels = Float32List(bytes.length ~/ 4 * 3);
+    int j = 0;
+    for (int i = 0; i < bytes.length; i += 4) {
+      final r = (bytes[i] - MEAN) / STD;
+      final g = (bytes[i + 1] - MEAN) / STD;
+      final b = (bytes[i + 2] - MEAN) / STD;
+      normalizedPixels[j++] = r;
+      normalizedPixels[j++] = g;
+      normalizedPixels[j++] = b;
+    }
+
+    return normalizedPixels;
   }
 
   Future<void> _speak(String text) async {
