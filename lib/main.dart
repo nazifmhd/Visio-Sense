@@ -33,7 +33,7 @@ class VisioSenseApp extends StatelessWidget {
         primarySwatch: Colors.blue,
       ),
        home: FirstScreen(),
-      // home: StartPage(),
+      //home: StartPage(),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:visiosense/authenticate/signin.dart';
@@ -17,7 +18,12 @@ class VisioSenseApp extends StatelessWidget {
   }
 }
 
-class ResetPassword extends StatelessWidget {
+class ResetPassword extends StatefulWidget {
+  @override
+  _ResetPasswordState createState() => _ResetPasswordState();
+}
+
+class _ResetPasswordState extends State<ResetPassword> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
@@ -133,6 +139,21 @@ class ResetPassword extends StatelessWidget {
                             // Get the document (assuming email is unique)
                             DocumentSnapshot userDoc = querySnapshot.docs.first;
 
+                            User? user = FirebaseAuth.instance.currentUser;
+                            if (user != null && user.email == email) {
+                              await user.updatePassword(newPassword);
+                            } else {
+                              // Re-authenticate the user if necessary
+                              AuthCredential credential =
+                                  EmailAuthProvider.credential(
+                                      email: email, password: newPassword);
+                              UserCredential userCredential = await FirebaseAuth
+                                  .instance
+                                  .signInWithCredential(credential);
+                              user = userCredential.user;
+                              await user?.updatePassword(newPassword);
+                            }
+
                             // Update password in Firestore using the document ID
                             await FirebaseFirestore.instance
                                 .collection('Guardian_User-Data')
@@ -154,7 +175,7 @@ class ResetPassword extends StatelessWidget {
                             );
 
                             // Redirect to login screen
-                            Future.delayed(Duration(seconds: 2), () {
+                            Future.delayed(Duration(seconds: 1), () {
                               // Navigator.popUntil(
                               //     context, ModalRoute.withName('/login'));
 
