@@ -65,12 +65,6 @@ VisioSense is an innovative assistive technology designed to aid visually impair
 - Implement low-power optimization for ESP32-CAM.
 - Integrate additional AI models for better scene understanding.
 
-## Contributors
-- **[Your Name]** - Project Lead & Developer
-- [Other Contributors]
-
-## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contact
-For inquiries, reach out via [Your Email] or visit [Your GitHub Profile].
+For inquiries, reach out via [mohamednazif2001@gmail.com].
